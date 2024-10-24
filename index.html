@@ -16,40 +16,30 @@
 <body class="bg-gray-100 flex flex-col items-center justify-center h-screen">
 
     <div class="text-center">
-        <!-- Title -->
         <h1 class="text-4xl font-bold mb-6 text-gray-800">Quick Share via Bluetooth QR Code</h1>
 
-        <!-- File Input -->
         <input type="file" id="fileInput" class="mb-6 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer">
-
-        <!-- QR Code Canvas -->
         <canvas id="qrCanvas" class="border border-gray-300 mb-4"></canvas>
 
-        <!-- Status Message -->
         <p id="statusMessage" class="text-gray-600 mt-4"></p>
-
-        <!-- Receiver Button -->
         <button id="receiveButton" onclick="startCamera()" class="bg-green-500 text-white px-6 py-2 rounded-lg opacity-0 transform translate-y-10">
             Scan QR Code to Connect
         </button>
     </div>
 
-    <!-- Video Element for QR Code Scanning -->
     <div id="reader" class="hidden"></div>
 
     <script>
-        // Show the QR code generation button when a file is selected
         document.getElementById('fileInput').addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
-                const fileLink = URL.createObjectURL(file); // Create a URL for the uploaded file
-                generateQRCode(fileLink); // Generate the QR code
-                gsap.to("#receiveButton", { opacity: 1, y: 0, duration: 1 }); // Show the receive button
+                const fileLink = URL.createObjectURL(file);
+                generateQRCode(fileLink);
+                gsap.to("#receiveButton", { opacity: 1, y: 0, duration: 1 });
                 document.getElementById('statusMessage').textContent = 'QR Code generated! Scan it to connect and share.';
             }
         });
 
-        // Generate QR Code
         function generateQRCode(link) {
             const qr = new QRious({
                 element: document.getElementById('qrCanvas'),
@@ -58,19 +48,17 @@
             });
         }
 
-        // Start the camera to scan QR code
         function startCamera() {
             const html5QrCode = new Html5Qrcode("reader");
 
             // Start the camera
             html5QrCode.start(
-                { facingMode: "environment" }, // Use rear camera
+                { facingMode: { exact: "environment" } }, // Use rear camera
                 {
-                    fps: 10,    // Frame per second for scanning
-                    qrbox: 250  // Size of the scanning box
+                    fps: 10,
+                    qrbox: 250
                 },
                 (decodedText, decodedResult) => {
-                    // If QR code is successfully scanned
                     console.log(`Decoded text: ${decodedText}`, decodedResult);
                     connectToBluetooth(decodedText);
                     html5QrCode.stop().then(() => {
@@ -80,34 +68,30 @@
                     });
                 },
                 (errorMessage) => {
-                    // Handle scan error
                     console.warn(`QR Code scanning error: ${errorMessage}`);
-                })
-            .catch(err => {
+                }
+            ).catch(err => {
                 console.error("Error starting the camera: ", err);
+                alert("Unable to access the camera. Please check your permissions and try again.");
             });
         }
 
-        // Bluetooth connection function
         async function connectToBluetooth(fileLink) {
             try {
-                // Request Bluetooth device
                 const device = await navigator.bluetooth.requestDevice({
                     filters: [{ name: "Device Name" }] // Replace with actual device name
                 });
 
                 document.getElementById('statusMessage').textContent = `Connected to: ${device.name}`;
-                startFileTransfer(fileLink); // Start the file transfer
+                startFileTransfer(fileLink);
             } catch (error) {
                 document.getElementById('statusMessage').textContent = 'Error connecting to Bluetooth: ' + error;
             }
         }
 
-        // Simulate file transfer process
         function startFileTransfer(link) {
             let progress = 0;
 
-            // Simulate file transfer progress
             const progressInterval = setInterval(() => {
                 progress += 10;
                 document.getElementById('statusMessage').textContent = `Transferring file... ${progress}%`;
@@ -116,7 +100,7 @@
                     clearInterval(progressInterval);
                     document.getElementById('statusMessage').textContent = 'File transferred successfully!';
                 }
-            }, 500); // Increase progress every 0.5 seconds
+            }, 500);
         }
     </script>
 </body>
