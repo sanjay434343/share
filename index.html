@@ -3,80 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quick Share via Bluetooth</title>
+    <title>Quick Share via Bluetooth QR Code</title>
     <!-- Tailwind CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- GSAP -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <!-- QRious for QR Code Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.0/qrious.min.js"></script>
+    <!-- html5-qrcode for QR Code Scanning -->
+    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
 </head>
-<link rel="icon" href="data:;base64,=">
-<body class="bg-gray-100 flex items-center justify-center h-screen">
+<body class="bg-gray-100 flex flex-col items-center justify-center h-screen">
 
     <div class="text-center">
         <!-- Title -->
-        <h1 class="text-4xl font-bold mb-6 text-gray-800">Quick Share via Bluetooth</h1>
+        <h1 class="text-4xl font-bold mb-6 text-gray-800">Quick Share via Bluetooth QR Code</h1>
 
         <!-- File Input -->
         <input type="file" id="fileInput" class="mb-6 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer">
-        
-        <!-- Search Button -->
-        <button id="searchButton" onclick="searchBluetoothDevices()" class="bg-blue-500 text-white px-6 py-2 rounded-lg">
-            Search for Bluetooth Devices
-        </button>
 
-        <!-- Devices List -->
-        <div class="mt-6">
-            <h2 class="text-2xl font-semibold mb-4">Available Devices:</h2>
-            <ul id="deviceList" class="text-left mx-auto w-1/2 bg-white p-4 rounded-lg shadow-md"></ul>
-        </div>
+        <!-- QR Code Canvas -->
+        <canvas id="qrCanvas" class="border border-gray-300 mb-4"></canvas>
 
         <!-- Status Message -->
         <p id="statusMessage" class="text-gray-600 mt-4"></p>
+
+        <!-- Receiver Button -->
+        <button id="receiveButton" onclick="startCamera()" class="bg-green-500 text-white px-6 py-2 rounded-lg opacity-0 transform translate-y-10">
+            Scan QR Code to Connect
+        </button>
     </div>
 
+    <!-- Video Element for QR Code Scanning -->
+    <div id="reader" class="hidden"></div>
+
     <script>
-        // Search for available Bluetooth devices
-        async function searchBluetoothDevices() {
+        // Show the QR code generation button when a file is selected
+        document.getElementById('fileInput').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const fileLink = URL.createObjectURL(file); // Create a URL for the uploaded file
+                generateQRCode(fileLink); // Generate the QR code
+                gsap.to("#receiveButton", { opacity: 1, y: 0, duration: 1 }); // Show the receive button
+                document.getElementById('statusMessage').textContent = 'QR Code generated! Scan it to connect and share.';
+            }
+        });
+
+        // Generate QR Code
+        function generateQRCode(link) {
+            const qr = new QRious({
+                element: document.getElementById('qrCanvas'),
+                value: link,
+                size: 200
+            });
+        }
+
+        // Start the camera to scan QR code
+        function startCamera() {
+            const html5QrCode = new Html5Qrcode("reader");
+
+            // Start the camera
+            html5QrCode.start(
+                { facingMode: "environment" }, // Use rear camera
+                {
+                    fps: 10,    // Frame per second for scanning
+                    qrbox: 250  // Size of the scanning box
+                },
+                (decodedText, decodedResult) => {
+                    // If QR code is successfully scanned
+                    console.log(`Decoded text: ${decodedText}`, decodedResult);
+                    connectToBluetooth(decodedText);
+                    html5QrCode.stop().then(() => {
+                        console.log("QR Code scanning stopped.");
+                    }).catch(err => {
+                        console.error("Failed to stop scanning.", err);
+                    });
+                },
+                (errorMessage) => {
+                    // Handle scan error
+                    console.warn(`QR Code scanning error: ${errorMessage}`);
+                })
+            .catch(err => {
+                console.error("Error starting the camera: ", err);
+            });
+        }
+
+        // Bluetooth connection function
+        async function connectToBluetooth(fileLink) {
             try {
-                // Request Bluetooth devices
+                // Request Bluetooth device
                 const device = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true, // Accept all devices
-                    optionalServices: ['battery_service', 'device_information'] // Can filter more based on services
+                    filters: [{ name: "Device Name" }] // Replace with actual device name
                 });
 
-                console.log('Device found:', device);
-
-                // Connect to the GATT server
-                const server = await device.gatt.connect();
-
-                // Add the device to the list after connection
-                displayDevice(device);
-
-                // Update status with device name
-                document.getElementById('statusMessage').textContent = `Connected to: ${device.name || 'Unnamed Device'}`;
-
+                document.getElementById('statusMessage').textContent = `Connected to: ${device.name}`;
+                startFileTransfer(fileLink); // Start the file transfer
             } catch (error) {
-                // Show error message if connection fails
                 document.getElementById('statusMessage').textContent = 'Error connecting to Bluetooth: ' + error;
-                console.error('Bluetooth connection error:', error);
             }
         }
 
-        // Display available device on the webpage
-        function displayDevice(device) {
-            const deviceList = document.getElementById('deviceList');
-            const listItem = document.createElement('li');
+        // Simulate file transfer process
+        function startFileTransfer(link) {
+            let progress = 0;
 
-            listItem.classList.add("border-b", "border-gray-300", "py-2");
-            listItem.textContent = `Name: ${device.name || 'Unnamed Device'}, ID: ${device.id}`;
+            // Simulate file transfer progress
+            const progressInterval = setInterval(() => {
+                progress += 10;
+                document.getElementById('statusMessage').textContent = `Transferring file... ${progress}%`;
 
-            deviceList.appendChild(listItem);
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    document.getElementById('statusMessage').textContent = 'File transferred successfully!';
+                }
+            }, 500); // Increase progress every 0.5 seconds
         }
-
-        // Simulate file selection (this part is from previous functionality)
-        document.getElementById('fileInput').addEventListener('change', () => {
-            gsap.to("#searchButton", { opacity: 1, y: 0, duration: 1 });
-        });
     </script>
 </body>
 </html>
