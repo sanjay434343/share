@@ -3,105 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quick Share via Bluetooth QR Code</title>
-    <!-- Tailwind CSS -->
+    <title>Bluetooth Chat App</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- GSAP -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
-    <!-- QRious for QR Code Generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.0/qrious.min.js"></script>
-    <!-- html5-qrcode for QR Code Scanning -->
-    <script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <style>
+        #messages {
+            max-height: 400px; /* Set a maximum height for the messages area */
+            overflow-y: auto; /* Enable vertical scrolling */
+        }
+        .message {
+            padding: 10px;
+            border-radius: 15px;
+            margin-bottom: 10px;
+            max-width: 75%;
+            word-wrap: break-word; /* Allow long words to break and wrap */
+        }
+        .message-sent {
+            background-color: #dcf8c6; /* Light green for sent messages */
+            align-self: flex-end;
+        }
+        .message-received {
+            background-color: #ffffff; /* White for received messages */
+            align-self: flex-start;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 flex flex-col items-center justify-center h-screen">
-
-    <div class="text-center">
-        <h1 class="text-4xl font-bold mb-6 text-gray-800">Quick Share via Bluetooth QR Code</h1>
-
-        <input type="file" id="fileInput" class="mb-6 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer">
-        <canvas id="qrCanvas" class="border border-gray-300 mb-4"></canvas>
-
-        <p id="statusMessage" class="text-gray-600 mt-4"></p>
-        <button id="receiveButton" onclick="startCamera()" class="bg-green-500 text-white px-6 py-2 rounded-lg opacity-0 transform translate-y-10">
-            Scan QR Code to Connect
-        </button>
+<body class="bg-gray-100 flex flex-col h-screen">
+    <div class="bg-white p-4 rounded-lg shadow-lg w-full max-w-md mx-auto flex flex-col flex-grow">
+        <h2 class="text-2xl font-bold mb-4 text-center">Bluetooth Chat</h2>
+        <div id="messages" class="flex flex-col border border-gray-300 p-4 mb-4 rounded-lg flex-grow"></div>
+        <div class="flex mb-2">
+            <input id="messageInput" type="text" placeholder="Type a message..." class="border border-gray-300 rounded p-2 w-full mr-2" />
+            <button id="sendButton" class="bg-blue-500 text-white rounded p-2">Send</button>
+        </div>
+        <button id="connectButton" class="bg-green-500 text-white rounded p-2 w-full">Connect via Bluetooth</button>
     </div>
-
-    <div id="reader" class="hidden"></div>
+    <footer class="bg-white p-2 mt-4 text-center shadow-md">
+        <p class="text-gray-500 text-sm">Bluetooth Chat App © 2024</p>
+    </footer>
 
     <script>
-        document.getElementById('fileInput').addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const fileLink = URL.createObjectURL(file);
-                generateQRCode(fileLink);
-                gsap.to("#receiveButton", { opacity: 1, y: 0, duration: 1 });
-                document.getElementById('statusMessage').textContent = 'QR Code generated! Scan it to connect and share.';
+        let bluetoothDevice;
+        let characteristic;
+
+        document.getElementById('connectButton').addEventListener('click', async () => {
+            try {
+                // Request Bluetooth device
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['battery_service'] }] // Change to your desired service
+                });
+
+                const server = await bluetoothDevice.gatt.connect();
+                characteristic = await server.getPrimaryService('battery_service').getCharacteristic('battery_level'); // Change to your desired characteristic
+                console.log('Connected to device:', bluetoothDevice.name);
+
+                // Set up notifications
+                characteristic.startNotifications().then(() => {
+                    characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+                });
+            } catch (error) {
+                console.error('Error connecting to Bluetooth device:', error);
             }
         });
 
-        function generateQRCode(link) {
-            const qr = new QRious({
-                element: document.getElementById('qrCanvas'),
-                value: link,
-                size: 200
-            });
-        }
+        document.getElementById('sendButton').addEventListener('click', async () => {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value;
 
-        function startCamera() {
-            const html5QrCode = new Html5Qrcode("reader");
-
-            // Start the camera
-            html5QrCode.start(
-                { facingMode: { exact: "environment" } }, // Use rear camera
-                {
-                    fps: 10,
-                    qrbox: 250
-                },
-                (decodedText, decodedResult) => {
-                    console.log(`Decoded text: ${decodedText}`, decodedResult);
-                    connectToBluetooth(decodedText);
-                    html5QrCode.stop().then(() => {
-                        console.log("QR Code scanning stopped.");
-                    }).catch(err => {
-                        console.error("Failed to stop scanning.", err);
-                    });
-                },
-                (errorMessage) => {
-                    console.warn(`QR Code scanning error: ${errorMessage}`);
-                }
-            ).catch(err => {
-                console.error("Error starting the camera: ", err);
-                alert("Unable to access the camera. Please check your permissions and try again.");
-            });
-        }
-
-        async function connectToBluetooth(fileLink) {
-            try {
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: "Device Name" }] // Replace with actual device name
-                });
-
-                document.getElementById('statusMessage').textContent = `Connected to: ${device.name}`;
-                startFileTransfer(fileLink);
-            } catch (error) {
-                document.getElementById('statusMessage').textContent = 'Error connecting to Bluetooth: ' + error;
+            if (message && characteristic) {
+                const encoder = new TextEncoder('utf-8');
+                await characteristic.writeValue(encoder.encode(message));
+                displayMessage(`You: ${message}`, 'sent');
+                messageInput.value = ''; // Clear input field
             }
+        });
+
+        function handleNotifications(event) {
+            const value = event.target.value;
+            const decoder = new TextDecoder('utf-8');
+            const message = decoder.decode(value);
+            displayMessage(`Friend: ${message}`, 'received');
         }
 
-        function startFileTransfer(link) {
-            let progress = 0;
+        function displayMessage(message, type) {
+            const messagesContainer = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.textContent = message;
 
-            const progressInterval = setInterval(() => {
-                progress += 10;
-                document.getElementById('statusMessage').textContent = `Transferring file... ${progress}%`;
+            messageElement.classList.add('message', type === 'sent' ? 'message-sent' : 'message-received');
 
-                if (progress >= 100) {
-                    clearInterval(progressInterval);
-                    document.getElementById('statusMessage').textContent = 'File transferred successfully!';
-                }
-            }, 500);
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll to the bottom
         }
+
+        // Pre-fill messages for demonstration purposes
+        window.onload = function() {
+            displayMessage("Friend: Hey there!", "received");
+            displayMessage("Friend: Are you available for a chat?", "received");
+            displayMessage("You: Yes! I'm here.", "sent");
+            displayMessage("You: What do you want to talk about?", "sent");
+        };
     </script>
 </body>
 </html>
