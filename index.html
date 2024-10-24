@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Share via Bluetooth</title>
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+</head>
+<link rel="icon" href="data:;base64,=">
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+    <div class="text-center">
+        <!-- Title -->
+        <h1 class="text-4xl font-bold mb-6 text-gray-800">Quick Share via Bluetooth</h1>
+
+        <!-- File Input -->
+        <input type="file" id="fileInput" class="mb-6 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer">
+        
+        <!-- Search Button -->
+        <button id="searchButton" onclick="searchBluetoothDevices()" class="bg-blue-500 text-white px-6 py-2 rounded-lg">
+            Search for Bluetooth Devices
+        </button>
+
+        <!-- Devices List -->
+        <div class="mt-6">
+            <h2 class="text-2xl font-semibold mb-4">Available Devices:</h2>
+            <ul id="deviceList" class="text-left mx-auto w-1/2 bg-white p-4 rounded-lg shadow-md"></ul>
+        </div>
+
+        <!-- Status Message -->
+        <p id="statusMessage" class="text-gray-600 mt-4"></p>
+    </div>
+
+    <script>
+        // Search for available Bluetooth devices
+        async function searchBluetoothDevices() {
+            try {
+                // Request Bluetooth devices
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true, // Accept all devices
+                    optionalServices: ['battery_service', 'device_information'] // Can filter more based on services
+                });
+
+                console.log('Device found:', device);
+
+                // Connect to the GATT server
+                const server = await device.gatt.connect();
+
+                // Add the device to the list after connection
+                displayDevice(device);
+
+                // Update status with device name
+                document.getElementById('statusMessage').textContent = `Connected to: ${device.name || 'Unnamed Device'}`;
+
+            } catch (error) {
+                // Show error message if connection fails
+                document.getElementById('statusMessage').textContent = 'Error connecting to Bluetooth: ' + error;
+                console.error('Bluetooth connection error:', error);
+            }
+        }
+
+        // Display available device on the webpage
+        function displayDevice(device) {
+            const deviceList = document.getElementById('deviceList');
+            const listItem = document.createElement('li');
+
+            listItem.classList.add("border-b", "border-gray-300", "py-2");
+            listItem.textContent = `Name: ${device.name || 'Unnamed Device'}, ID: ${device.id}`;
+
+            deviceList.appendChild(listItem);
+        }
+
+        // Simulate file selection (this part is from previous functionality)
+        document.getElementById('fileInput').addEventListener('change', () => {
+            gsap.to("#searchButton", { opacity: 1, y: 0, duration: 1 });
+        });
+    </script>
+</body>
+</html>
