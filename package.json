@@ -1,5 +1,16 @@
 {
+  "name": "wi-fi-chat-app",
+  "version": "1.0.0",
+  "main": "index.html",
+  "scripts": {
+    "start": "vercel dev",             
+    "build": "echo 'No build step required'", 
+    "vercel-build": "echo 'No build step required'"
+  },
   "dependencies": {
-    "ws": "^8.18.0"
+    "ws": "^8.0.0" 
+  },
+  "devDependencies": {
+    "@vercel/node": "^2.0.0" 
   }
 }
